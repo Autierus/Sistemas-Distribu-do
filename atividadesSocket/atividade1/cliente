@@ -1,0 +1,37 @@
+const net = require('net');
+
+function fazer_requisicao(endereco_ip, porta, caminho) {
+    const cliente = net.createConnection({ host: endereco_ip, port: porta }, () => {
+        console.log('Conectado ao servidor.');
+        const requisicao = `GET ${caminho} HTTP/1.1\r\nHost: ${endereco_ip}\r\n\r\n`;
+        cliente.write(requisicao);
+    });
+
+    cliente.on('data', (data) => {
+        console.log(data.toString());
+        cliente.end();
+    });
+
+    cliente.on('end', () => {
+        console.log('Desconectado do servidor.');
+    });
+
+    cliente.on('error', (err) => {
+        console.error(`Erro: ${err}`);
+    });
+}
+
+const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+readline.question('Informe a URL completa (ex: http://127.0.0.1:8088/index.html): ', (url) => {
+    const endereco = url.split('//')[1];
+    const endereco_ip = endereco.split(':')[0];
+    const porta = endereco.split(':')[1].split('/')[0];
+    const caminho = '/' + endereco.split(':')[1].split('/').slice(1).join('/');
+
+    fazer_requisicao(endereco_ip, porta, caminho);
+    readline.close();
+});
