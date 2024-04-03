@@ -1,0 +1,45 @@
+import socket
+import os
+
+def main():
+    porta = int(input("Informe a porta: "))
+    diretorio = input("Informe o caminho do diretório: ")
+    iniciar_servidor(porta, diretorio)
+
+def iniciar_servidor(porta, diretorio):
+    servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    servidor.bind(('0.0.0.0', porta))
+    servidor.listen(5)
+    print(f"Servidor escutando na porta {porta}...")
+
+    while True:
+        conexao, endereco_cliente = servidor.accept()
+        print(f"Conexão recebida de {endereco_cliente}")
+
+        requisicao = conexao.recv(1024).decode()
+
+        if requisicao:
+            caminho_arquivo = extrair_caminho(requisicao)
+            conteudo = ler_arquivo(diretorio, caminho_arquivo)
+            conexao.sendall(conteudo.encode())
+
+        conexao.close()
+
+def extrair_caminho(requisicao):
+    linhas = requisicao.split("\n")
+    linha_requisicao = linhas[0]
+    partes = linha_requisicao.split(" ")
+    caminho = partes[1]
+    return caminho
+
+def ler_arquivo(diretorio, caminho_arquivo):
+    try:
+        with open(os.path.join(diretorio, caminho_arquivo[1:]), 'r') as arquivo:
+            conteudo = arquivo.read()
+        resposta = f"HTTP/1.1 200 OK\n\n{conteudo}"
+    except FileNotFoundError:
+        resposta = "HTTP/1.1 404 Not Found\n\nPágina não encontrada"
+    return resposta
+
+if __name__ == "__main__":
+    main()
