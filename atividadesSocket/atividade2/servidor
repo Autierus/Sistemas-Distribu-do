@@ -1,1 +1,89 @@
 
+import socket
+import json
+
+# Banco de Questões de Múltipla Escolha
+BANCO_QUESTOES = {
+    "1": {
+        "pergunta": "Qual é a capital do Brasil?",
+        "opcoes": ["A) São Paulo", "B) Rio de Janeiro", "C) Brasília", "D) Salvador"],
+        "resposta": "C"
+    },
+    "2": {
+        "pergunta": "Quem escreveu 'Dom Casmurro'?",
+        "opcoes": ["A) Machado de Assis", "B) Carlos Drummond de Andrade", "C) Cecília Meireles", "D) Vinícius de Moraes"],
+        "resposta": "A"
+    }
+}
+
+# Dados de Login dos Estudantes
+DADOS_LOGIN = {
+    "123456": "senha123",
+    "789012": "senha456"
+}
+
+def main():
+    porta = int(input("Informe a porta: "))
+    iniciar_servidor(porta)
+
+def iniciar_servidor(porta):
+    servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    servidor.bind(('0.0.0.0', porta))
+    servidor.listen(5)
+    print(f"Servidor escutando na porta {porta}...")
+
+    while True:
+        conexao, endereco_cliente = servidor.accept()
+        print(f"Conexão recebida de {endereco_cliente}")
+
+        requisicao = conexao.recv(1024).decode()
+
+        if requisicao:
+            resposta = processar_requisicao(requisicao)
+            conexao.sendall(resposta.encode())
+
+        conexao.close()
+
+def processar_requisicao(requisicao):
+    caminho = extrair_caminho(requisicao)
+    
+    if caminho == "/login":
+        return "HTTP/1.1 200 OK\n\nPor favor, informe sua matrícula e senha no corpo da requisição."
+    
+    if caminho == "/questoes":
+        conteudo = json.dumps(BANCO_QUESTOES)
+        return f"HTTP/1.1 200 OK\n\n{conteudo}"
+    
+    if caminho == "/respostas":
+        dados = json.loads(requisicao.split("\n")[-1])
+        matricula = dados.get("matricula")
+        senha = dados.get("senha")
+        respostas = dados.get("respostas")
+        
+        if DADOS_LOGIN.get(matricula) == senha:
+            resultado = {}
+            total_pontos = 0
+            pontos = 0
+            
+            for key, value in respostas.items():
+                total_pontos += 1
+                if value == BANCO_QUESTOES[key]["resposta"]:
+                    pontos += 1
+                    resultado[key] = "Correta"
+                else:
+                    resultado[key] = "Incorreta"
+            
+            conteudo = json.dumps({"resultado": resultado, "pontuacao": f"{pontos}/{total_pontos}"})
+            return f"HTTP/1.1 200 OK\n\n{conteudo}"
+        else:
+            return "HTTP/1.1 401 Unauthorized\n\nCredenciais inválidas."
+
+def extrair_caminho(requisicao):
+    linhas = requisicao.split("\n")
+    linha_requisicao = linhas[0]
+    partes = linha_requisicao.split(" ")
+    caminho = partes[1]
+    return caminho
+
+if __name__ == "__main__":
+    main()
