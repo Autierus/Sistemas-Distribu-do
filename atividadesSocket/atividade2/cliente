@@ -1,1 +1,82 @@
+const axios = require('axios');
+const readline = require('readline').createInterface({
+    input: process.stdin,
+    output: process.stdout
+});
+
+function fazerLogin() {
+    readline.question('Informe sua matrícula: ', (matricula) => {
+        readline.question('Informe sua senha: ', (senha) => {
+            const dados = {
+                matricula: matricula,
+                senha: senha
+            };
+            axios.post('http://127.0.0.1:8080/login', dados)
+                .then(response => {
+                    if (response.status === 200) {
+                        console.log('Login realizado com sucesso!');
+                        obterQuestoes(dados);
+                    } else {
+                        console.log('Credenciais inválidas.');
+                        readline.close();
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erro: ${error}`);
+                    readline.close();
+                });
+        });
+    });
+}
+
+function obterQuestoes(dadosLogin) {
+    axios.get('http://127.0.0.1:8080/questoes')
+        .then(response => {
+            const questoes = response.data;
+            responderQuestoes(questoes, dadosLogin);
+        })
+        .catch(error => {
+            console.error(`Erro: ${error}`);
+            readline.close();
+        });
+}
+
+function responderQuestoes(questoes, dadosLogin) {
+    const respostas = {};
+    
+    for (const [key, value] of Object.entries(questoes)) {
+        console.log(value.pergunta);
+        value.opcoes.forEach(opcao => {
+            console.log(opcao);
+        });
+        
+        readline.question('Informe a opção correta (A, B, C ou D): ', (resposta) => {
+            respostas[key] = resposta.toUpperCase();
+            
+            if (Object.keys(respostas).length === Object.keys(questoes).length) {
+                enviarRespostas(dadosLogin, respostas);
+            }
+        });
+    }
+}
+
+function enviarRespostas(dadosLogin, respostas) {
+    const dados = {
+        matricula: dadosLogin.matricula,
+        senha: dadosLogin.senha,
+        respostas: respostas
+    };
+
+    axios.post('http://127.0.0.1:8080/respostas', dados)
+        .then(response => {
+            console.log(response.data);
+            readline.close();
+        })
+        .catch(error => {
+            console.error(`Erro: ${error}`);
+            readline.close();
+        });
+}
+
+fazerLogin();
 
